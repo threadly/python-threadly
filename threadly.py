@@ -14,7 +14,7 @@ class Executor():
       Arguments:
       PoolSize -- spesify the number of threads wanted for this pool.
     """
-    self.log = logging.getLogger("root")
+    self.log = logging.getLogger("root.threadly")
     self.KeyLock = threading.Condition()
     self.PoolSize = PoolSize
     self.RUNNING = True
@@ -50,10 +50,11 @@ class Executor():
       self.delayLock.release()
     else:
       if key != None:
+        self.KeyLock.acquire()
         if key not in self.keys:
-          self.KeyLock.acquire()
-          self.keys[key] = runQueue()
-          self.KeyLock.release()
+          X = runQueue()
+          self.keys[key] = X
+        self.KeyLock.release()
         r = self.keys[key]
         r.add(task)
         r.Lock.acquire()
@@ -136,7 +137,9 @@ class Executor():
         print "Problem running ", e
 
 
-  
+#been having a lot of problems with concurrency here
+#Which is why we are locking around pretty much anything 
+#having to do with the run list.
 class runQueue():
   def __init__(self):
     self.run = list()
@@ -144,21 +147,28 @@ class runQueue():
     self.inQueue = False
 
   def add(self, task):
+    self.Lock.acquire()
     self.run.append(task)
+    self.Lock.release()
 
   def runNext(self):
-    self.run[0]()
-    self.run.pop(0)
+    self.Lock.acquire()
+    X = self.run.pop(0)
+    self.Lock.release()
+    X()
 
   def runAll(self):
+#    print "Start On Thread %s"%(threading.current_thread())
     while len(self.run) > 0:
       self.runNext()
       if len(self.run) == 0:
         self.Lock.acquire()
         if len(self.run) == 0:
           self.inQueue = False
+          self.Lock.release()
+#          print "Stop  On Thread %s"%(threading.current_thread())
+          break
         self.Lock.release()
-
 
 def singleton(cls):
   instances = {}
@@ -167,7 +177,6 @@ def singleton(cls):
       instances[cls] = cls()
     return instances[cls]
   return getinstance
-
 
 @singleton
 class Clock(object):

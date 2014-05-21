@@ -9,5 +9,5 @@ setup (# Distribution meta-data
        url = "threadly.org",
        license = "lgpl",
        description = "Threading pool and scheduler for python",
-       packages =  ['threadly'],
+       py_modules =  ['threadly'],
       )
