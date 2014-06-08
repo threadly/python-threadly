@@ -1,17 +1,12 @@
 import threadly, time, random
-import logging, threading
-
-
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
-log = logging.getLogger("root")
-log.setLevel(logging.DEBUG)
-
+import unittest
 
 PASSED = False
 SLEEP = True
 CALL = 0
 
-def TEST():
+
+def TEST1():
   global SLEEP
   global CALL
   if SLEEP:
@@ -22,20 +17,44 @@ def TEST():
   else:
     CALL+=1
 
+ADD = 1
+def TEST2():
+  global ADD
+  time.sleep(random.random()*.001)
+  ADD+=ADD
 
-p = threadly.Executor(10)
+class TestKeys(unittest.TestCase):
 
-LASTRUN = time.time()
-threads = list()
-for i in xrange(1001):
-  p.schedule(TEST, key="TEST")
+  def test_keyTest(self):
+    global CALL
+    global PASSED
+    p = threadly.Executor(10)
 
-while p.MAINQUEUE.qsize() > 0:
-  time.sleep(.1)
+    LASTRUN = time.time()
+    threads = list()
+    for i in xrange(1001):
+      p.schedule(TEST1, key="TEST")
 
-p.shutdown()
-if CALL == 1:
-  PASSED = True
-else:
-  PASSED = False
+    for k in p.keys:
+      while len(p.keys[k].run) > 0:
+        time.sleep(.1)
 
+    p.shutdown()
+    self.assertEquals(1,CALL)
+
+  def test_keyTest2(self):
+    global ADD
+    p = threadly.Executor(10)
+    for i in xrange(100):
+      p.schedule(TEST2, key="BLAH")
+    for k in p.keys:
+      while len(p.keys[k].run) > 0:
+        time.sleep(.1)
+    self.assertEquals(1267650600228229401496703205376,ADD)
+    p.shutdown()
+    
+
+
+
+if __name__ == '__main__':
+  unittest.main()

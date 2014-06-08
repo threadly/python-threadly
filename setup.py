@@ -1,7 +1,11 @@
 #!/usr/bin/env python
-from distutils.core import setup
+#from distutils.core import setup
+try:
+  from setuptools import setup
+except ImportError:
+  from distutils.core import setup
 
-setup (# Distribution meta-data
+setup (
        name = "threadly",
        version = "0.1.0",
        author = "Luke Wahlmeier",
@@ -10,4 +14,5 @@ setup (# Distribution meta-data
        license = "lgpl",
        description = "Threading pool and scheduler for python",
        py_modules =  ['threadly'],
+       test_suite='tests',
       )

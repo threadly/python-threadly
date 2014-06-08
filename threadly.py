@@ -184,12 +184,12 @@ class Clock(object):
     self.current = int(time.time()*1000)
     self.run = False
     self.thread = None
-    self.startClockUpdateThread()
+    self.__startClockUpdateThread()
 
   def __updateClock(self):
     while self.run:
       time.sleep(.1)
-      self.current = time.time()
+      self.accurateTime()
 
   def accurateTime(self):
     self.current = time.time()
@@ -201,7 +201,7 @@ class Clock(object):
   def lastKnownTime(self):
     return self.current
 
-  def startClockUpdateThread(self):
+  def __startClockUpdateThread(self):
     if self.thread == None or not self.thread.is_alive():
       self.run = True
       self.thread = threading.Thread(target=self.__updateClock)
@@ -209,7 +209,7 @@ class Clock(object):
       self.thread.daemon = True
       self.thread.start()
 
-  def stopClockUpdateThread(self):
+  def __stopClockUpdateThread(self):
       self.run = False
 
 
