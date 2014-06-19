@@ -184,6 +184,8 @@ class Clock(object):
     self.current = int(time.time()*1000)
     self.run = False
     self.thread = None
+    self.getTime = time.time
+    self.sleep = time.sleep
     self.__startClockUpdateThread()
   
   def __del__(self):
@@ -192,10 +194,10 @@ class Clock(object):
   def __updateClock(self):
     while self.run:
       self.accurateTime()
-      time.sleep(.1)
+      self.sleep(.1)
 
   def accurateTime(self):
-    self.current = time.time()
+    self.current = self.getTime()
     return self.current
 
   def lastKnownTimeMillis(self):
