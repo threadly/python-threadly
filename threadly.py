@@ -185,11 +185,14 @@ class Clock(object):
     self.run = False
     self.thread = None
     self.__startClockUpdateThread()
+  
+  def __del__(self):
+    self.__stopClockUpdateThread()
 
   def __updateClock(self):
     while self.run:
-      time.sleep(.1)
       self.accurateTime()
+      time.sleep(.1)
 
   def accurateTime(self):
     self.current = time.time()
