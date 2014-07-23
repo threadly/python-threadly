@@ -4,6 +4,10 @@ Threadly is a threadpool/scheduler for python.  It allows execution of function 
 
 This project is loosely based off the java Threadly threadpool library [threadly.org](http://threadly.org).
 
+##Documentation:
+
+Documentation can be found [here](http://lwahlmeier.github.io/python-threadly/doc/)
+
 ##Basics:
 
 
