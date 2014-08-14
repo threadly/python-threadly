@@ -19,9 +19,9 @@ class TestSchedule(unittest.TestCase):
     LASTRUN = time.time()
     p.schedule(TEST, delay=100, recurring=True)
     time.sleep(1)
-    p.removeScheduled(TEST)
+    p.remove(TEST)
 
-    p.shutdown()
+    p.shutdown_now()
 
     AVG = sum(RUNS) / float(len(RUNS))
     if AVG > .101 or AVG < .099:

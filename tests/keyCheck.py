@@ -25,7 +25,7 @@ def TEST2():
 
 class TestKeys(unittest.TestCase):
 
-  def test_keyTest(self):
+  def keyTest(self):
     global CALL
     global PASSED
     p = threadly.Executor(10)
@@ -39,7 +39,7 @@ class TestKeys(unittest.TestCase):
       while len(p.keys[k].run) > 0:
         time.sleep(.1)
 
-    p.shutdown()
+    p.shutdown_now()
     self.assertEquals(1,CALL)
 
   def test_keyTest2(self):
@@ -51,7 +51,7 @@ class TestKeys(unittest.TestCase):
       while len(p.keys[k].run) > 0:
         time.sleep(.1)
     self.assertEquals(1267650600228229401496703205376,ADD)
-    p.shutdown()
+    p.shutdown_now()
     
 
 

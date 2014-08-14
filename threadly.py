@@ -3,47 +3,49 @@ import Queue
 import logging
 import time
 
-"""threadly a simple threadpool and schduler.
+"""threadly a simple threadpool and scheduler.
 """
 
-class Executor():
-  """Main Executor Object. 
+
+class Scheduler(object):
+  """Main Executor Object.
   This starts up a thread pool and scheduler.  Please note 1 extra thread is used for scheduling.
 
   @undocumented: __empty
-  @undocumented: __delayCheckThread
-  @undocumented: __getNextWait
-  @undocumented: __threadPool
+  @undocumented: __delay_check_thread
+  @undocumented: __get_next_wait_time
+  @undocumented: __thread_pool
   """
-  def __init__(self, PoolSize):
+  def __init__(self, poolsize):
     """
-    Construct an Executor instance.  It will make one extra thread then the number spesified, as it needs it for scheduling.  
-    
-    @type  PoolSize: number
-    @param PoolSize: The number of threads wanted for this pool.
+    Construct an Executor instance.  It will make one extra thread then the number specified, as it needs it for scheduling.  
+
+    @type  poolsize: number
+    @param poolsize: The number of threads wanted for this pool.
     """
     self.log = logging.getLogger("root.threadly")
-    self.KeyLock = threading.Condition()
-    self.PoolSize = PoolSize
-    self.RUNNING = True
-    self.MAINQUEUE = Queue.Queue()
-    self.delayTasks = list()
-    self.threads = list()
-    self.delayLock = threading.Condition()
-    self.keys = dict()
     self.clock = Clock()
-    for i in xrange(self.PoolSize):
-      t = threading.Thread(target=self.__threadPool)
-      t.name = "Executor-Pool-Thread-%d"%(i)
-      t.daemon = True
-      t.start()
-      self.threads.append(t)
-    self.delayThread = threading.Thread(target=self.__delayCheckThread)
-    self.delayThread.name = "Executor-DelayThread"
-    self.delayThread.daemon = True
-    self.delayThread.start()
+    self.key_lock = threading.Condition()
+    self.poolsize = poolsize
+    self.running = True
+    self.in_shutdown = False
+    self.main_queue = Queue.Queue()
+    self.delayed_tasks = list()
+    self.threads = list()
+    self.delay_lock = threading.Condition()
+    self.keys = dict()
+    for i in xrange(self.poolsize):
+      tmp_thread = threading.Thread(target=self.__thread_pool)
+      tmp_thread.name = "Executor-Pool-Thread-%d"%(i)
+      tmp_thread.daemon = True
+      tmp_thread.start()
+      self.threads.append(tmp_thread)
+    self.delay_thread = threading.Thread(target=self.__delay_check_thread)
+    self.delay_thread.name = "Executor-DelayThread"
+    self.delay_thread.daemon = True
+    self.delay_thread.start()
 
-  def getPoolSize(self):
+  def get_poolsize(self):
     """
     Gets the number of threads used in this Pool
 
@@ -52,16 +54,16 @@ class Executor():
     """
     return len(self.threads)
 
-  def execute(self, task):
+  def execute(self, task, args=(), kwargs={}):
     """
     Execute a given task as soon as possible
 
     @type  task: function pointer
     @param task: the function to run
     """
-    self.schedule(task)
+    self.schedule(task, args=args, kwargs=kwargs)
 
-  def schedule(self, task, delay=0, recurring=False, key=None):
+  def schedule(self, task, delay=0, recurring=False, key=None, args=(), kwargs={}):
     """
     Schedule a task for execution.
 
@@ -73,235 +75,247 @@ class Executor():
     @param key: This sets a key to the task.  Any task with this key will be executed in a single threaded manor.
     """
     if delay > 0:
-      T = int(self.clock.accurateTime()*1000)+delay
-      self.delayLock.acquire()
-      self.delayTasks.append((T, task, delay, recurring, key))
-      self.delayLock.notify()
-      self.delayLock.release()
+      s_task = int(self.clock.accurate_time() * 1000) + delay
+      self.delay_lock.acquire()
+      self.delayed_tasks.append((s_task, task, delay, recurring, key, args, kwargs))
+      self.delay_lock.notify()
+      self.delay_lock.release()
     else:
       if key != None:
-        self.KeyLock.acquire()
+        self.key_lock.acquire()
         if key not in self.keys:
-          X = KeyRunner()
-          self.keys[key] = X
-        self.KeyLock.release()
-        r = self.keys[key]
-        r.add(task)
-        r.Lock.acquire()
-        if not r.inQueue and len(r.run) > 0:
-          r.inQueue = True
-          self.MAINQUEUE.put(r.runAll)
-        r.Lock.release()
+          tmp = KeyRunner()
+          self.keys[key] = tmp
+        self.key_lock.release()
+        run_key = self.keys[key]
+        run_key.add((task, args, kwargs))
+        run_key.lock.acquire()
+        if not run_key.in_queue and len(run_key.run) > 0:
+          run_key.in_queue = True
+          self.main_queue.put((run_key.run_all, (), {}))
+        run_key.lock.release()
       else:
-        self.MAINQUEUE.put(task)
+        self.main_queue.put((task, args, kwargs))
 
-  def removeScheduled(self, task):
+  def remove(self, task):
       """
       Remove a scheduled task from the queue.  This is a best effort remove, the task could still possibly run.  This is most useful to cancel recurring tasks.
       If there is more then one task of this type scheduled only the first one is removed.
-      
+
       @type  task: function pointer
       @param task: task to remove from the queue
       """
-      self.delayLock.acquire()
+      self.delay_lock.acquire()
       count = 0
       found = False
-      for t in self.delayTasks:
-        if t[1] == task:
+      for tasks in self.delayed_tasks:
+        if tasks[1] == task:
           found = True
           break
         else:
           count+=1
       if found:
-        self.delayTasks.pop(count)
-      self.delayLock.release()
+        self.delayed_tasks.pop(count)
+      self.delay_lock.release()
 
   def shutdown(self):
     """
-    Shutsdown the threadpool.  Any task currently being executed will still complete, but nothing in the queue will run.
+    Shuts down the threadpool.  Any task currently on the queue will be ran.  No more Scheduled events will be added to the queue.
     """
-    self.RUNNING = False
+    self.delay_lock.acquire()
+    self.delayed_tasks = list()
+    self.delay_lock.release()
+    self.execute(self.__internal_shutdown)
+
+  def shutdown_now(self):
+    """
+    Shuts down the threadpool.  Any task currently being executed will still complete, but the queue will be emptied out.
+    """
+    self.running = False
     #Flush the Queues
-    self.delayLock.acquire()
-    self.delayTasks = list()
-    self.delayLock.release()
-    while not self.MAINQUEUE.empty():
-      self.MAINQUEUE.get(False)
-    while self.delayThread.isAlive():
-      self.delayLock.acquire()
-      self.delayLock.notify()
-      self.delayLock.release()
-    #Add empty tasks till all threads Die
-    for t in self.threads:
-      while t.isAlive():
-        self.MAINQUEUE.put(self.__empty)
+    self.delay_lock.acquire()
+    self.delayed_tasks = list()
+    self.delay_lock.release()
+    while not self.main_queue.empty():
+      self.main_queue.get_nowait()
+    self.__internal_shutdown()
+
+  def __internal_shutdown(self):
+    self.running = False
+    while self.delay_thread.isAlive():
+      self.delay_lock.acquire()
+      self.delay_lock.notify()
+      self.delay_lock.release()
+    for tmp_thread in self.threads:
+      while tmp_thread.isAlive() and tmp_thread != threading.current_thread():
+        self.main_queue.put((self.__empty, (), {}))
 
   def __empty(self):
     pass
-        
 
-  def __delayCheckThread(self):
-    while self.RUNNING:
-      self.delayLock.acquire()
-      X = self.__getNextWait()
-      if X == 0:
-        T = self.delayTasks.pop(0)
+  def __delay_check_thread(self):
+    while self.running:
+      self.delay_lock.acquire()
+      next_delay_time = self.__get_next_wait_time()
+      if next_delay_time == 0:
+        run_task = self.delayed_tasks.pop(0)
         #timer is up, so we add to queue now
-        self.schedule(T[1], key=T[4])
-        #T[3] is recurring, if so we add again as a scheduled event
-        if T[3] == True:
-          self.schedule(T[1], T[2], T[3], T[4])
+        self.schedule(run_task[1], key=run_task[4], args=run_task[5], kwargs=run_task[6])
+        #run_task[3] is recurring, if so we add again as a scheduled event
+        if run_task[3] == True and not self.in_shutdown:
+          self.schedule(run_task[1], run_task[2], run_task[3], run_task[4])
       else:
-        self.delayLock.wait(X)
-      self.delayLock.release()
+        self.delay_lock.wait(next_delay_time)
+      self.delay_lock.release()
 
-  def __getNextWait(self):
-    if len(self.delayTasks) == 0:
+  def __get_next_wait_time(self):
+    if len(self.delayed_tasks) == 0:
       return 1000
-    self.delayTasks.sort()
-    X = self.delayTasks[0][0] - int(self.clock.accurateTime()*1000)
-    if X >= 1: #this is actuallu .005, if we have this or less we just run it now
-      #We return as a float, and we want to wake up right before the next task needs to run
-      return (X/1000.0)-.0005
+    self.delayed_tasks.sort()
+    task = self.delayed_tasks[0][0] - int(self.clock.accurate_time()*1000)
+    #  this is actually .005, if we have this or less we just run it now
+    #  We return as a float, and we want to wake up right before the next task needs to run
+    if task >= 1: 
+      return (task/1000.0)-.0005
     else:
       return 0.0
 
-  def __threadPool(self):
-    while self.RUNNING:
+  def __thread_pool(self):
+    while self.running:
       try:
-          X = self.MAINQUEUE.get()
-          X()
-      except IndexError, e:
+          runner = self.main_queue.get()
+          runner[0](*runner[1], **runner[2])
+      except IndexError, exp:
         pass
-      except Exception, e:
-        print "Problem running ", e
+      except Exception, exp:
+        print "Problem running ", exp
 
 
-class KeyRunner():
+class Executor(Scheduler):
+  """A class for backwards compatibility, Scheduler should be used instead now.
+  """
+  pass
+
+class KeyRunner(object):
   """A class to wrap key objects
   Items can be added to the KeyRunner while its running.  This is used to keep all tasks for a given key in one thread.
   """
   def __init__(self):
     self.run = list()
-    self.Lock = threading.Condition()
-    self.inQueue = False
+    self.lock = threading.Condition()
+    self.in_queue = False
 
   def add(self, task):
     """
     Add a task to this runner set.
-    
+
     @type  task: function pointer
     @param task: will add to the current keyrunner set.
     """
-    self.Lock.acquire()
+    self.lock.acquire()
     self.run.append(task)
-    self.Lock.release()
+    self.lock.release()
 
-  def runNext(self):
+  def run_next(self):
     """
     Run the next item for this key."""
-    self.Lock.acquire()
-    X = self.run.pop(0)
-    self.Lock.release()
-    X()
+    self.lock.acquire()
+    runner = self.run.pop(0)
+    self.lock.release()
+    runner[0](*runner[1], **runner[2])
 
-  def runAll(self):
+  def run_all(self):
     """
     Run all items in this keyRunner."""
     while len(self.run) > 0:
-      self.runNext()
+      self.run_next()
       if len(self.run) == 0:
-        self.Lock.acquire()
+        self.lock.acquire()
         if len(self.run) == 0:
-          self.inQueue = False
-          self.Lock.release()
+          self.in_queue = False
+          self.lock.release()
           break
-        self.Lock.release()
+        self.lock.release()
 
 class Singleton(object):
-  """A Simple inheratable singleton"""
+  """A Simple inheritable singleton"""
 
   __single = None
 
-  def __new__(classtype, *args, **kwargs):
-    if classtype != type(classtype.__single):
-      classtype.__single = object.__new__(classtype, *args, **kwargs)
-    return classtype.__single
-
-  def __init__(self,name=None):
-    self.name = name
-
-  def display(self):
-    print self.name,id(self),type(self)
-
+  def __new__(cls, *args, **kwargs):
+    if cls != type(cls.__single):
+      cls.__single = object.__new__(cls, *args, **kwargs)
+    return cls.__single
 
 
 class Clock(Singleton):
-  """A Simple clock class to allow for retrival of time from multipule threads to be more efficient.
+  """A Simple clock class to allow for retrieval of time from multiple threads to be more efficient.
   This class is a singleton so anyone using it will be using the same instance.
-
-  The clock updates every 100ms so calls to get time often can be more performant if they dont need to be exact.
-
+  The clock updates every 100ms so calls to get time often can be more per formant if they don't need to be exact.
   @undocumented: __init__
   @undocumented: __del__
-  @undocumented: __updateClock
-  @undocumented: __startClockUpdateThread
-  @undocumented: __stopClockUpdateThread
+  @undocumented: __update_clock
+  @undocumented: __start_clock_thread
+  @undocumented: __stop_clock_thread
   """
   def __init__(self):
     self.current = int(time.time()*1000)
     self.run = False
     self.thread = None
-    self.getTime = time.time
+    self.get_time = time.time
     self.sleep = time.sleep
-    self.__startClockUpdateThread()
-      
-  
+    self.__start_clock_thread()
+
   def __del__(self):
-    self.__stopClockUpdateThread()
+    self.__stop_clock_thread()
 
-  def __updateClock(self):
+  def __update_clock(self):
     while self.run:
-      self.accurateTime()
+      self.accurate_time()
       self.sleep(.1)
-
-  def accurateTime(self):
+      
+  def accurate_time_millis(self):
     """
-    Get the actual current time.  This should be called as little as offten, and only when exact times are needed.
+    Get the actual current time. This should be called as little as often, and only when exact times are needed.
+    @rtype: int
+    @return: returns a float with whole numbers being seconds. Pretty much identical to time.time()
+    """
+    self.current = self.get_time()
+    return int(self.current*1000)
 
+  def accurate_time(self):
+    """
+    Get the actual current time. This should be called as little as often, and only when exact times are needed.
     @rtype: float
     @return: returns a float with whole numbers being seconds. Pretty much identical to time.time()
     """
-    self.current = self.getTime()
+    self.current = self.get_time()
     return self.current
 
-  def lastKnownTimeMillis(self):
+  def last_known_time_millis(self):
     """
-    Gets the last ran time in milliseconds.  This is accurate to 100ms.
-
+    Gets the last ran time in milliseconds. This is accurate to 100ms.
     @rtype: int
     @return: an integer representing the last known time in millis.
     """
     return int(self.current*1000)
 
-  def lastKnownTime(self):
+  def last_known_time(self):
     """
-    Gets the last ran time seconds.milliseconds.  This is accurate to 100ms.
-
+    Gets the last ran time seconds.milliseconds. This is accurate to 100ms.
     @rtype: float
     @return: represents the last known time.
     """
     return self.current
 
-  def __startClockUpdateThread(self):
+  def __start_clock_thread(self):
     if self.thread == None or not self.thread.is_alive():
       self.run = True
-      self.thread = threading.Thread(target=self.__updateClock)
+      self.thread = threading.Thread(target=self.__update_clock)
       self.thread.name = "Clock Thread"
       self.thread.daemon = True
       self.thread.start()
 
-  def __stopClockUpdateThread(self):
-      self.run = False
-
+  def __stop_clock_thread(self):
+    self.run = False
 
