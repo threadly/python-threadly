@@ -163,7 +163,7 @@ class Scheduler(object):
         self.schedule(run_task[1], key=run_task[4], args=run_task[5], kwargs=run_task[6])
         #run_task[3] is recurring, if so we add again as a scheduled event
         if run_task[3] == True and not self.in_shutdown:
-          self.schedule(run_task[1], run_task[2], run_task[3], run_task[4])
+          self.schedule(run_task[1], run_task[2], run_task[3], run_task[4], run_task[5], run_task[6])
       else:
         self.delay_lock.wait(next_delay_time)
       self.delay_lock.release()
@@ -188,7 +188,8 @@ class Scheduler(object):
       except IndexError, exp:
         pass
       except Exception, exp:
-        print "Problem running ", exp
+        print "Exception when Running: %s "%(runner[0])
+        print exp
 
 
 class Executor(Scheduler):

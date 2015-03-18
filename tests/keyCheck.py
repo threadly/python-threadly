@@ -51,7 +51,7 @@ class TestKeys(unittest.TestCase):
       while len(p.keys[k].run) > 0:
         time.sleep(.1)
     self.assertEquals(1267650600228229401496703205376,ADD)
-    p.shutdown_now()
+    p.shutdown()
     
 
 
