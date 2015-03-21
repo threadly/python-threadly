@@ -147,7 +147,7 @@ class Scheduler(object):
       self.delay_lock.notify()
       self.delay_lock.release()
     for tmp_thread in self.threads:
-      while tmp_thread.isAlive() and tmp_thread != threading.current_thread():
+      while tmp_thread != None and tmp_thread.isAlive() and threading != None and tmp_thread != threading.current_thread():
         self.main_queue.put((self.__empty, (), {}))
 
   def __empty(self):
