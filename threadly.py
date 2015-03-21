@@ -63,6 +63,12 @@ class Scheduler(object):
     """
     self.schedule(task, args=args, kwargs=kwargs)
 
+  def schedule_with_future(self, task, delay=0, key=None, args=(), kwargs={}):
+    job=(task, args, kwargs)
+    future = ListenableFuture()
+    self.schedule(futureJob, delay=delay, key=key, args=(future, job))
+    return future
+
   def schedule(self, task, delay=0, recurring=False, key=None, args=(), kwargs={}):
     """
     Schedule a task for execution.
@@ -237,6 +243,66 @@ class KeyRunner(object):
           self.lock.release()
           break
         self.lock.release()
+
+def futureJob(future, job):
+  try:
+    job[0](*job[1], **job[2])
+    future.setter(True)
+  except Exception as e:
+    print "Error running futureJob:", e
+    future.setter(False)
+
+
+class ListenableFuture():
+  def __init__(self):
+    self.lock = threading.Condition()
+    self.settable = None
+    self.listeners = list()
+    self.callables = list()
+  
+  def addListener(self, listener, args=(), kwargs={}):
+    if self.settable == None:
+      self.listeners.append((listener, args, kwargs))
+    else:
+      listener(*args, **kwargs)
+
+  def addCallable(self, cable, args=(), kwargs={}):
+    if self.settable is None:
+      self.callables.append((cable, args, kwargs))
+    else:
+      cable(self.settable, *args, **kwargs)
+
+  def get(self, timeout=2**32):
+    if self.settable is not None:
+      return self.settable
+    start = time.time()
+    while self.settable is None and time.time() - start < timeout:
+      self.lock.acquire()
+      self.lock.wait(timeout - (time.time() - start))
+      self.lock.release
+    return self.settable
+
+  def setter(self, obj):
+    if self.settable is None:
+      self.settable = obj
+      self.lock.acquire()
+      self.lock.notify_all()
+      self.lock.release()
+      while len(self.listeners) > 0:
+        i = self.listeners.pop(0)
+        try:
+          i[0](*i[1], **i[2])
+        except Exception as e:
+          print "Exception calling listener", i[0], e
+      while len(self.callables) > 0:
+        i = self.callables.pop(0)
+        try:
+          i[0](self.settable, *i[1], **i[2])
+        except Exception as e:
+          print "Exception calling listener", i[0], e
+    else:
+      raise Exception("Already Set!")
+      
 
 class Singleton(object):
   """A Simple inheritable singleton"""
