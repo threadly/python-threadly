@@ -1,5 +1,6 @@
-import threading
+import threading, sys
 import Queue
+from Queue import Empty as EmptyException
 import logging
 import time
 
@@ -40,10 +41,6 @@ class Scheduler(object):
       tmp_thread.daemon = True
       tmp_thread.start()
       self.threads.append(tmp_thread)
-    self.delay_thread = threading.Thread(target=self.__delay_check_thread)
-    self.delay_thread.name = "Executor-DelayThread"
-    self.delay_thread.daemon = True
-    self.delay_thread.start()
 
   def get_poolsize(self):
     """
@@ -54,6 +51,9 @@ class Scheduler(object):
     """
     return len(self.threads)
 
+  def get_queue_size(self):
+    return self.main_queue.qsize()
+
   def execute(self, task, args=(), kwargs={}):
     """
     Execute a given task as soon as possible
@@ -62,6 +62,43 @@ class Scheduler(object):
     @param task: the function to run
     """
     self.schedule(task, args=args, kwargs=kwargs)
+
+  def __add_delay_task(self, task):
+    self.delay_lock.acquire()
+    try:
+      c = len(self.delayed_tasks)
+      if c == 0:
+        self.delayed_tasks.append(task)
+        self.execute(self.__empty)
+        return
+      elif self.delayed_tasks[0][0] > task[0]:
+        self.delayed_tasks.insert(0, task)
+        return
+      elif self.delayed_tasks[c-1][0] < task[0] or c == 1:
+        self.delayed_tasks.append(task)
+        return
+
+      l = self.delayed_tasks
+      c = len(l)
+      ch = c/2
+      while True:
+        if l[ch][0] < task[0]:
+          if ch == 0:
+            l.insert(ch, task)
+            break
+          else:
+            ch = ch/2
+        elif l[ch][0] > task[0]:
+          if ch == c:
+            l.append(task)
+            break
+          else:
+            ch = ch/2
+        else:
+          l.insert(ch, task)
+          break
+    finally:
+      self.delay_lock.release()
 
   def schedule_with_future(self, task, delay=0, key=None, args=(), kwargs={}):
     job=(task, args, kwargs)
@@ -82,10 +119,7 @@ class Scheduler(object):
     """
     if delay > 0:
       s_task = int(self.clock.accurate_time() * 1000) + delay
-      self.delay_lock.acquire()
-      self.delayed_tasks.append((s_task, task, delay, recurring, key, args, kwargs))
-      self.delay_lock.notify()
-      self.delay_lock.release()
+      self.__add_delay_task((s_task, task, delay, recurring, key, args, kwargs))
     else:
       if key != None:
         self.key_lock.acquire()
@@ -148,10 +182,6 @@ class Scheduler(object):
 
   def __internal_shutdown(self):
     self.running = False
-    while self.delay_thread.isAlive():
-      self.delay_lock.acquire()
-      self.delay_lock.notify()
-      self.delay_lock.release()
     for tmp_thread in self.threads:
       while tmp_thread != None and tmp_thread.isAlive() and threading != None and tmp_thread != threading.current_thread():
         self.main_queue.put((self.__empty, (), {}))
@@ -159,43 +189,42 @@ class Scheduler(object):
   def __empty(self):
     pass
 
-  def __delay_check_thread(self):
-    while self.running:
-      self.delay_lock.acquire()
-      next_delay_time = self.__get_next_wait_time()
-      if next_delay_time == 0:
-        run_task = self.delayed_tasks.pop(0)
-        #timer is up, so we add to queue now
-        self.schedule(run_task[1], key=run_task[4], args=run_task[5], kwargs=run_task[6])
-        #run_task[3] is recurring, if so we add again as a scheduled event
-        if run_task[3] == True and not self.in_shutdown:
-          self.schedule(run_task[1], run_task[2], run_task[3], run_task[4], run_task[5], run_task[6])
-      else:
-        self.delay_lock.wait(next_delay_time)
-      self.delay_lock.release()
-
   def __get_next_wait_time(self):
     if len(self.delayed_tasks) == 0:
-      return 1000
-    self.delayed_tasks.sort()
-    task = self.delayed_tasks[0][0] - int(self.clock.accurate_time()*1000)
-    #  this is actually .005, if we have this or less we just run it now
-    #  We return as a float, and we want to wake up right before the next task needs to run
-    if task >= 1: 
-      return (task/1000.0)-.0005
+      return 2**32
     else:
-      return 0.0
+      task = self.delayed_tasks[0][0] - int(self.clock.accurate_time()*1000)
+      return (task/1000.0)-.0005
 
   def __thread_pool(self):
     while self.running:
       try:
-          runner = self.main_queue.get()
-          runner[0](*runner[1], **runner[2])
-      except IndexError, exp:
+          runner = None
+          to = None
+          if len(self.delayed_tasks) > 0:
+            self.delay_lock.acquire()
+            if len(self.delayed_tasks) > 0:
+              to = self.__get_next_wait_time()
+              while to <= 0:
+                run_task = self.delayed_tasks.pop(0)
+                self.schedule(run_task[1], key=run_task[4], args=run_task[5], kwargs=run_task[6])
+                #run_task[3] is recurring, if so we add again as a scheduled event
+                if run_task[3] == True and not self.in_shutdown:
+                  self.schedule(run_task[1], run_task[2], run_task[3], run_task[4], run_task[5], run_task[6])
+                to = self.__get_next_wait_time()
+            self.delay_lock.release()
+          if runner == None:
+            runner = self.main_queue.get(True, to)
+          if runner != None:
+            runner[0](*runner[1], **runner[2])
+      except IndexError as exp:
         pass
-      except Exception, exp:
-        print "Exception when Running: %s "%(runner[0])
-        print exp
+      except EmptyException as exp:
+        pass
+      except Exception as exp:
+        print "Exception when Running:", sys.exc_info()
+        print "1", runner
+        print "2", exp
 
 
 class Executor(Scheduler):

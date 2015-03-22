@@ -69,6 +69,7 @@ class TestSchedule(unittest.TestCase):
     self.assertEquals(1, len(p.delayed_tasks))
     p.remove(TEST)
     self.assertEquals(1, len(p.delayed_tasks))
+    p.shutdown()
     
 
 if __name__ == '__main__':
