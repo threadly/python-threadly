@@ -104,8 +104,12 @@ class Scheduler(object):
     """
     if delay > 0:
       s_task = int(self.__clock.accurate_time() * 1000) + delay
+      send = False
+      if delay/1000.0 <= self.__get_next_wait_time():
+        send = True
       self.__delayed_tasks.add((s_task, task, delay, recurring, key, args, kwargs))
-      self.__main_queue.put((self.__empty, (), {}))
+      if send:
+        self.__main_queue.put((self.__empty, (), {}))
     else:
       if key != None:
         self.__key_lock.acquire()
@@ -174,39 +178,43 @@ class Scheduler(object):
     pass
 
   def __get_next_wait_time(self):
-    if self.__delayed_tasks.size() == 0:
+    tmp = self.__delayed_tasks.peek()
+    if tmp == None or self.__delayed_tasks.size() == 0:
       return 2**32
     else:
-      task = self.__delayed_tasks.peek()[0] - int(self.__clock.accurate_time()*1000)
+      task = tmp[0] - int(self.__clock.accurate_time()*1000)
       return (task/1000.0)-.0005
 
   def __check_delay_queue(self):
-    try:
-      self.__delayed_tasks.lock()
-      to = self.__get_next_wait_time()
-      while to <= 0:
-        run_task = self.__delayed_tasks.pop(0)
-        self.schedule(run_task[1], key=run_task[4], args=run_task[5], kwargs=run_task[6])
-        #run_task[3] is recurring, if so we add again as a scheduled event
-        if run_task[3] == True and not self.__in_shutdown:
-          self.schedule(run_task[1], run_task[2], run_task[3], run_task[4], run_task[5], run_task[6])
+    dl = self.__delayed_tasks.lock()
+    if dl:
+      try:
         to = self.__get_next_wait_time()
-    finally:
-      self.__delayed_tasks.unlock()
+        while to <= 0:
+          run_task = self.__delayed_tasks.pop(0)
+          self.schedule(run_task[1], key=run_task[4], args=run_task[5], kwargs=run_task[6])
+          #run_task[3] is recurring, if so we add again as a scheduled event
+          if run_task[3] == True and not self.__in_shutdown:
+            self.schedule(run_task[1], run_task[2], run_task[3], run_task[4], run_task[5], run_task[6])
+          to = self.__get_next_wait_time()
+      finally:
+        self.__delayed_tasks.unlock()
+    return dl
 
 
   def __thread_pool(self):
     while self.__running:
       try:
-          runner = None
+        runner = None
+        to = self.__get_next_wait_time()
+        if to <= 0 and self.__check_delay_queue():
           to = self.__get_next_wait_time()
-          while to <= 0:
-            self.__check_delay_queue()
-            to = self.__get_next_wait_time()
-          if runner == None:
-            runner = self.__main_queue.get(True, to)
-          if runner != None:
-            runner[0](*runner[1], **runner[2])
+        if to <= 0:
+          to = 5
+        if runner == None:
+          runner = self.__main_queue.get(True, to)
+        if runner != None:
+          runner[0](*runner[1], **runner[2])
       except IndexError as exp:
         pass
       except EmptyException as exp:
@@ -217,88 +225,95 @@ class Scheduler(object):
 
 class SortedLockingList:
   def __init__(self):
-    self.blist = list()
+    self.slist = list()
+    self.uslist = list()
     self.__lock = threading.Condition()
 
   def clear(self):
     self.__lock.acquire()
-    self.blist = list()
+    self.slist = list()
+    self.uslist = list()
     self.__lock.release()
 
 
   def lock(self):
-    self.__lock.acquire()
+    return self.__lock.acquire(False)
 
   def unlock(self):
     self.__lock.release()
 
   def size(self):
-    return len(self.blist)
+    return len(self.slist) + len(self.uslist)
 
   def peek(self):
     self.__lock.acquire()
-    if len(self.blist) == 0:
+    self.__combine()
+    if len(self.slist) == 0:
       tmp = None
     else:
-      tmp = self.blist[0]
+      tmp = self.slist[0]
     self.__lock.release()
     return tmp
 
   def pop(self, i=0):
     self.__lock.acquire()
-    tmp = self.blist.pop(i)
+    self.__combine()
+    tmp = self.slist.pop(i)
     self.__lock.release()
     return tmp
   
   def add(self, item):
+    self.uslist.append(item)
+  
+  def __combine(self):
     try:
       self.__lock.acquire()
-      c = len(self.blist)
-      if c == 0:
-        self.blist.append(item)
-        return
-      elif item < self.blist[0]:
-        self.blist.insert(0, item)
-        return
-      elif c == 1 or item > self.blist[c-1]:
-        self.blist.append(item)
-        return
-
-      l = self.blist
-      lmax = len(l)-1
-      ch = c/2
-      while True:
-        if item < l[ch]:
-          if ch == 0:
-            print "ERROR:"
-            return
-          else:
-            lmax = ch-1
-            ch = ch/2
-        elif item > l[ch]:
-          if ch >= lmax:
-            self.blist.insert(ch+1, item)
-            break
-          else:
-            diff = lmax-ch
-            ch = ch+((diff/2)+1)
+      while len(self.uslist) > 0:
+        item = self.uslist.pop(0)
+        c = len(self.slist)
+        if c == 0:
+          self.slist.append(item)
+        elif item < self.slist[0]:
+          self.slist.insert(0, item)
+        elif c == 1 or item > self.slist[c-1]:
+          self.slist.append(item)
         else:
-          l.insert(ch, item)
-          break
+          l = self.slist
+          lmax = len(l)-1
+          ch = c/2
+          while True:
+            if item < l[ch]:
+              if ch == 0:
+                print "ERROR:"
+                return
+              else:
+                lmax = ch-1
+                ch = ch/2
+            elif item > l[ch]:
+              if ch >= lmax:
+                self.slist.insert(ch+1, item)
+                break
+              else:
+                diff = lmax-ch
+                ch = ch+((diff/2)+1)
+            else:
+              l.insert(ch, item)
+              break
     finally:
       self.__lock.release()
 
   def remove(self, item):
     try:
       self.__lock.acquire()
-      self.blist.remove(item)
+      self.__combine()
+      self.slist.remove(item)
     except:
       pass
     finally:
       self.__lock.release()
 
   def safeIterator(self):
-    local = list(self.blist)
+    local = list(self.slist)
     for i in local:
       yield i
 
@@ -424,11 +439,13 @@ class ListenableFuture():
     if self.settable is not None:
       return self.settable
     start = time.time()
-    while self.settable is None and time.time() - start < timeout:
+    try:
       self.lock.acquire()
-      self.lock.wait(timeout - (time.time() - start))
-      self.lock.release
-    return self.settable
+      while self.settable is None and time.time() - start < timeout:
+        self.lock.wait(timeout - (time.time() - start))
+      return self.settable
+    finally:
+      self.lock.release()
 
   def setter(self, obj):
     """
