@@ -1,5 +1,12 @@
-import threadly, time, random
+import threadly, time, random, logging
 import unittest
+
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M')
+
+
 
 PASSED = False
 SLEEP = True
@@ -35,8 +42,8 @@ class TestKeys(unittest.TestCase):
     for i in xrange(1001):
       p.schedule(TEST1, key="TEST")
 
-    for k in p.keys:
-      while len(p.keys[k].run) > 0:
+    for k in p._Scheduler__keys:
+      while p._Scheduler__keys[k].size() > 0:
         time.sleep(.1)
 
     p.shutdown_now()
@@ -47,8 +54,8 @@ class TestKeys(unittest.TestCase):
     p = threadly.Executor(10)
     for i in xrange(100):
       p.schedule(TEST2, key="BLAH")
-    for k in p.keys:
-      while len(p.keys[k].run) > 0:
+    for k in p._Scheduler__keys:
+      while p._Scheduler__keys[k].size() > 0:
         time.sleep(.1)
     self.assertEquals(1267650600228229401496703205376,ADD)
     print "DONE"

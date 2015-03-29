@@ -20,12 +20,7 @@ import threadly
 def testFoo():
     print "Thread %s Executed"%(threading.current_thread())
 
-executor = threadly.Executor(10) #starts a thread pool with 10 threads
-
-#these execute the task asap
-executor.execute(testFoo)
-executor.execute(testFoo)
-executor.execute(testFoo)
+executor = threadly.Scheduler(10) #starts a thread pool with 10 threads
 
 #this will Execute a task in 100 ms
 executor.schedule(testFoo, delay=100)
@@ -33,10 +28,15 @@ executor.schedule(testFoo, delay=100)
 #this will Execute a task every second until removed
 executor.schedule(testFoo, delay=1000, recurring=True)
 
+#these execute the task asap
+executor.execute(testFoo)
+executor.execute(testFoo)
+executor.execute(testFoo)
+
 #this will run a task, any other tasks using the same key will be executed as though they are single threaded
 executor.schedule(testFoo, key="someObject")
 
-#this removes/stops the recurring task
+#this removes/stops the first scheduled task for this callable, if it was recurring it will no longer be
 executor.removeScheduled(testFoo)
 
 #this shuts down the threadpool
@@ -54,13 +54,13 @@ from threadly import Clock
 c = Clock()
 
 #this outputs the time in millis.  Note this is an int/long not a float
-print c.lastKnownTimeMillis()
+print c.last_known_time_millis()
         
 #this outputs time like time.time() as a float where everything less then 1 is less then a second
-print c.lastKnownTime()
+print c.last_known_time()
 
 #This gets accurate time, just like time.time()
-print c.accurateTime()
+print c.accurate_time()
 ```        
         
 >__NOTE:__ There is an __stop() function but it should only be used if you know what your doing as it will stop the clock updating thread, and since there is only one instance it stops for everyone.
