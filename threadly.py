@@ -224,12 +224,18 @@ class Scheduler(object):
 
 
 class SortedLockingList:
+  """
+  This is a sortedList implementation for multiThreads.  One main goal is to make adds as cheap as possible.
+  """
   def __init__(self):
     self.slist = list()
     self.uslist = list()
     self.__lock = threading.Condition()
 
   def clear(self):
+    """
+    clears out the list
+    """
     self.__lock.acquire()
     self.slist = list()
     self.uslist = list()
@@ -237,15 +243,30 @@ class SortedLockingList:
 
 
   def lock(self):
+    """
+    Returns `True` if you get the lock `False` if you dont.
+
+    Non-Blocking lock request, returns True if you get the lock false if you dont.  This is the main
+    lock for the list once acquired you must release before any other thread can access the list.
+    """
     return self.__lock.acquire(False)
 
   def unlock(self):
+    """
+    Releases the lists lock.
+    """
     self.__lock.release()
 
   def size(self):
+    """
+    Returns and `int` of the current size of the list.
+    """
     return len(self.slist) + len(self.uslist)
 
   def peek(self):
+    """
+    Returns the first entry in the list, this does not remove the entry from the list.
+    """
     self.__lock.acquire()
     self.__combine()
     if len(self.slist) == 0:
@@ -256,6 +277,9 @@ class SortedLockingList:
     return tmp
 
   def pop(self, i=0):
+    """
+    Returns either the first entry from the list or the spesified entry.
+    """
     self.__lock.acquire()
     self.__combine()
     tmp = self.slist.pop(i)
@@ -263,6 +287,11 @@ class SortedLockingList:
     return tmp
   
   def add(self, item):
+    """
+    Adds an entry to the list.
+
+    `item` entry to add to the list.
+    """
     self.uslist.append(item)
   
   def __combine(self):
@@ -303,6 +332,11 @@ class SortedLockingList:
       self.__lock.release()
 
   def remove(self, item):
+    """
+    Removes an item from the list.
+  
+    `item` item to remove from the list.
+    """
     try:
       self.__lock.acquire()
       self.__combine()
@@ -313,6 +347,15 @@ class SortedLockingList:
       self.__lock.release()
 
   def safeIterator(self):
+    """
+    This is a non-Blocking safe iterator for the list.  It is essentially just a copy of the sorted lists
+    entries at the time it was called. 
+    """
+    try:
+      self.__lock.acquire()
+      self.__combine()
+    finally:
+      self.__lock.release()
     local = list(self.slist)
     for i in local:
       yield i
