@@ -1,9 +1,10 @@
 import threading
 
+
 class KeyedExecutor(object):
   """
   A class to wrap keys objects for the executer.
-  Items can be added to the KeyRunner while its running.  
+  Items can be added to the KeyRunner while its running.
   This is used to keep all tasks for a given key in one thread.
   """
   def __init__(self):

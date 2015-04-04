@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-VERSION = "0.5.0"
+VERSION = "0.5.2"
 
-setup (
-       name = "threadly",
-       version = VERSION,
-       author = "Luke Wahlmeier",
-       author_email = "lwahlmeier@gmail.com",
-       url = "http://lwahlmeier.github.io/python-threadly/",
-       download_url = "https://github.com/lwahlmeier/python-threadly/tarball/%s"%(VERSION),
-       license = "lgpl",
-       description = "Threading pool and scheduler for python",
-       long_description = open('README-pypi.rst').read(),
-       keywords = ['threading', 'scheduling'],
-       classifiers = [
+setup(name="threadly",
+       version=VERSION,
+       author="Luke Wahlmeier",
+       author_email="lwahlmeier@gmail.com",
+       url="http://lwahlmeier.github.io/python-threadly/",
+       download_url="https://github.com/lwahlmeier/python-threadly/tarball/%s"%(VERSION),
+       license="lgpl",
+       description="Threading pool and scheduler for python",
+       long_description=open('README-pypi.rst').read(),
+       keywords=['threading', 'scheduling'],
+       classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
@@ -27,6 +26,6 @@ setup (
         'Topic :: Software Development :: Libraries',
         'Topic :: Utilities'
         ],
-       packages =  ['threadly'],
-       test_suite = 'tests',
+       packages=['threadly'],
+       test_suite='tests',
       )

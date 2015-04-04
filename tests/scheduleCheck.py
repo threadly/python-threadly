@@ -52,7 +52,6 @@ class TestSchedule(unittest.TestCase):
 
   def test_removeScheduledTest2(self):
     p = threadly.Executor(30)
-
     LASTRUN = time.time()
     p.schedule(time.time, delay=10, recurring=True)
     p.schedule(TEST, delay=10000, recurring=True)
