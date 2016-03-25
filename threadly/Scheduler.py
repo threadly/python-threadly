@@ -184,13 +184,19 @@ class Scheduler(object):
         self.__running = False
         self.__delayed_tasks.clear()
         while not self.__main_queue.empty():
-            self.__main_queue.get_nowait()
+            try:
+                self.__main_queue.get_nowait()
+            except:
+                pass
         self.__internal_shutdown()
 
     def __internal_shutdown(self):
         self.__running = False
         for tmp_thread in self.__threads:
-            while tmp_thread is not None and tmp_thread.isAlive() and threading is not None and tmp_thread != threading.current_thread():
+            if tmp_thread is not None and tmp_thread.isAlive() and threading is not None and tmp_thread != threading.current_thread():
+                self.__main_queue.put((self.__empty, (), {}))
+                self.__main_queue.put((self.__empty, (), {}))
+                self.__main_queue.put((self.__empty, (), {}))
                 self.__main_queue.put((self.__empty, (), {}))
 
     def __empty(self):
