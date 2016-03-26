@@ -27,7 +27,7 @@ class TestSchedule(unittest.TestCase):
     p.shutdown_now()
 
     AVG = sum(RUNS) / float(len(RUNS))
-    self.assertTrue(AVG < .0105)
+    self.assertTrue(AVG < .0130)
     self.assertTrue(AVG > .0099)
 
   def test_exptTest1(self):

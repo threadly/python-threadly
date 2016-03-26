@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-VERSION = "0.6.2"
+VERSION = "0.7.0"
 
 setup(name="threadly",
        version=VERSION,
@@ -9,7 +9,7 @@ setup(name="threadly",
        author_email="lwahlmeier@gmail.com",
        url="http://lwahlmeier.github.io/python-threadly/",
        download_url="https://github.com/lwahlmeier/python-threadly/tarball/%s"%(VERSION),
-       license="lgpl",
+       license="unlicense",
        description="Thread pool and scheduler for python",
        keywords=['threading', 'scheduling'],
        classifiers=[
@@ -23,7 +23,8 @@ setup(name="threadly",
         'Operating System :: Unix',
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries',
-        'Topic :: Utilities'
+        'Topic :: Utilities',
+        'License :: Public Domain'
         ],
        packages=['threadly'],
        test_suite='tests',
