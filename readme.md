@@ -6,7 +6,7 @@ This project is loosely based off the java Threadly threadpool library [threadly
 
 ##Documentation:
 
-Documentation can be found [here](http://lwahlmeier.github.io/python-threadly/doc/)
+Documentation can be found [here](http://threadly.github.io/python-threadly/doc/)
 
 ##Basics:
 
