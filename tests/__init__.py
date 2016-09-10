@@ -1,1 +1,1 @@
-import keyCheck
+from . import keyCheck

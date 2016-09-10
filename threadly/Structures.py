@@ -92,22 +92,21 @@ class SortedLockingList(object):
                     self.slist.append(item)
                 else:
                     lmax = len(self.slist) - 1
-                    cur_pos = llen / 2
+                    cur_pos = llen // 2
                     while True:
                         if item < self.slist[cur_pos]:
                             if cur_pos == 0:
-                                print "ERROR:"
                                 return
                             else:
                                 lmax = cur_pos - 1
-                                cur_pos = cur_pos / 2
+                                cur_pos = cur_pos // 2
                         elif item > self.slist[cur_pos]:
                             if cur_pos >= lmax:
                                 self.slist.insert(cur_pos + 1, item)
                                 break
                             else:
                                 diff = lmax - cur_pos
-                                cur_pos = cur_pos + ((diff / 2) + 1)
+                                cur_pos = cur_pos + ((diff // 2) + 1)
                         else:
                             self.slist.insert(cur_pos, item)
                             break

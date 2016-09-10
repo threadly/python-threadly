@@ -4,14 +4,22 @@ threadly a simple threadpool and scheduler for python.
 
 import threading
 import logging
-import Queue
-from Queue import Empty as EmptyException
+try:
+    from Queue import Queue
+    from Queue import Empty as EmptyException
+except:
+    from queue import Queue, Empty as EmptyException
+
 from threadly.Structures import SortedLockingList
 from threadly.KeyedExecutor import KeyedExecutor
 from threadly.Futures import ListenableFuture
 from threadly.Futures import future_job
 from threadly.Clock import Clock
 
+try:
+    xrange(1)
+except:
+    xrange = range
 
 class Scheduler(object):
     """
@@ -32,7 +40,7 @@ class Scheduler(object):
         self.__poolsize = poolsize
         self.__running = True
         self.__in_shutdown = False
-        self.__main_queue = Queue.Queue()
+        self.__main_queue = Queue()
         self.__delayed_tasks = SortedLockingList()
         self.__in_delay = False
         self.__threads = list()

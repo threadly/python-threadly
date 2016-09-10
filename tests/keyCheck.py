@@ -1,5 +1,11 @@
+from __future__ import print_function
 import threadly, time, random, logging
 import unittest
+
+try:
+    xrange(1)
+except:
+    xrange = range
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -58,7 +64,7 @@ class TestKeys(unittest.TestCase):
       while p._Scheduler__keys[k].size() > 0:
         time.sleep(.1)
     self.assertEquals(1267650600228229401496703205376,ADD)
-    print "DONE"
+    print("DONE")
     p.shutdown()
     
 
