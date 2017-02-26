@@ -4,10 +4,17 @@ Clock tools for threadly
 
 import threading
 import time
-from . import Singleton
 
+def clockSingleton(cls):
+    instances = {}
+    def getinstance():
+        if cls not in instances:
+            instances[cls] = cls()
+        return instances[cls]
+    return getinstance
 
-class Clock(Singleton.Singleton):
+@clockSingleton
+class Clock(object):
     """
     A Simple clock class to allow for retrieval of time from multiple threads
     to be more efficient.  This class is a singleton so anyone using it will
