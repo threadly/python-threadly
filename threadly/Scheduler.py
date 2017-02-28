@@ -252,5 +252,7 @@ class Scheduler(object):
             except EmptyException as exp:
                 pass
             except Exception as exp:
+                if hasattr(exp, 'exception'):
+                    logging.exception(exp)
                 self.__log.error("Exception while Executing: %s, %s"%(runner, exp))
 
