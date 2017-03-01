@@ -213,7 +213,7 @@ class Scheduler(object):
     def __get_next_wait_time(self):
         tmp = self.__delayed_tasks.peek()
         if tmp is None or self.__delayed_tasks.size() == 0:
-            return 2 ** 32
+            return 3600
         else:
             task = tmp[0] - int(self.__clock.accurate_time() * 1000)
             return (task / 1000.0) - .0005
