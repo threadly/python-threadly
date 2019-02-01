@@ -84,9 +84,6 @@ class SortedLockingList(object):
             while len(self.uslist) > 0:
                 item = self.uslist.pop(0)
                 llen = len(self.slist)
-                if llen > 0:
-                  print(item[0])
-                  print(self.slist[0][0])
                 if llen == 0:
                     self.slist.append(item)
                 elif item[0] < self.slist[0][0]:
