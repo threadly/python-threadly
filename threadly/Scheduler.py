@@ -145,7 +145,6 @@ class Scheduler(object):
                 run_key.add((task, args, kwargs))
                 run_key.lock.acquire()
                 if not run_key.in_queue and run_key.size() > 0:
-
                     run_key.in_queue = True
                     self.__main_queue.put((run_key.run_all, (), {}))
                 run_key.lock.release()
@@ -243,8 +242,7 @@ class Scheduler(object):
                     time_out = self.__get_next_wait_time()
                 if time_out <= 0:
                     time_out = 5
-                if runner is None:
-                    runner = self.__main_queue.get(True, time_out)
+                runner = self.__main_queue.get(True, time_out)
                 if runner is not None:
                     runner[0](*runner[1], **runner[2])
             except IndexError as exp:
@@ -252,7 +250,7 @@ class Scheduler(object):
             except EmptyException as exp:
                 pass
             except Exception as exp:
-                if hasattr(exp, 'exception'):
-                    logging.exception(exp)
-                self.__log.error("Exception while Executing: %s, %s"%(runner, exp))
+                self.__log.error("Exception while Executing function:\"{}\" with args:\"{}\" and kwargs:\"{}\"".format(runner[0].__name__, runner[1],runner[2]))
+                self.__log.exception(exp)
+
 

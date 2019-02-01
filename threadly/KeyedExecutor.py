@@ -1,4 +1,5 @@
 import threading
+import logging
 
 
 class KeyedExecutor(object):
@@ -8,6 +9,7 @@ class KeyedExecutor(object):
   This is used to keep all tasks for a given key in one thread.
   """
   def __init__(self):
+    self.__log = logging.getLogger("root.threadly")
     self.__run = list()
     self.lock = threading.Condition()
     self.in_queue = False
@@ -32,7 +34,12 @@ class KeyedExecutor(object):
     self.lock.acquire()
     runner = self.__run.pop(0)
     self.lock.release()
-    runner[0](*runner[1], **runner[2])
+    try:
+      runner[0](*runner[1], **runner[2])
+    except Exception as exp:
+      self.__log.error("Exception while Executing function:\"{}\" with args:\"{}\" and kwargs:\"{}\"".format(runner[0].__name__, runner[1],runner[2]))
+      self.__log.exception(exp)
+
 
   def run_all(self):
     """
