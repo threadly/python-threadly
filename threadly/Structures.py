@@ -86,21 +86,21 @@ class SortedLockingList(object):
                 llen = len(self.slist)
                 if llen == 0:
                     self.slist.append(item)
-                elif item[0] < self.slist[0][0]:
+                elif item < self.slist[0]:
                     self.slist.insert(0, item)
-                elif llen == 1 or item[0] > self.slist[llen - 1][0]:
+                elif llen == 1 or item > self.slist[llen - 1]:
                     self.slist.append(item)
                 else:
                     lmax = len(self.slist) - 1
                     cur_pos = llen // 2
                     while True:
-                        if item[0] < self.slist[cur_pos][0]:
+                        if item < self.slist[cur_pos]:
                             if cur_pos == 0:
                                 return
                             else:
                                 lmax = cur_pos - 1
                                 cur_pos = cur_pos // 2
-                        elif item[0] > self.slist[cur_pos][0]:
+                        elif item > self.slist[cur_pos]:
                             if cur_pos >= lmax:
                                 self.slist.insert(cur_pos + 1, item)
                                 break

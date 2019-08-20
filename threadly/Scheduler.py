@@ -181,7 +181,7 @@ class Scheduler(object):
         """
         self.__running = False
         self.__delayed_tasks.clear()
-        self.execute(self.__internal_shutdown)
+        return self.schedule_with_future(self.shutdown_now)
 
     def shutdown_now(self):
         """
@@ -200,7 +200,7 @@ class Scheduler(object):
     def __internal_shutdown(self):
         self.__running = False
         for tmp_thread in self.__threads:
-            if tmp_thread is not None and tmp_thread.isAlive() and threading is not None and tmp_thread != threading.current_thread():
+            if tmp_thread is not None and tmp_thread.is_alive() and threading is not None and tmp_thread != threading.current_thread():
                 self.__main_queue.put((self.__empty, (), {}))
                 self.__main_queue.put((self.__empty, (), {}))
                 self.__main_queue.put((self.__empty, (), {}))
@@ -250,7 +250,8 @@ class Scheduler(object):
             except EmptyException as exp:
                 pass
             except Exception as exp:
-                self.__log.error("Exception while Executing function:\"{}\" with args:\"{}\" and kwargs:\"{}\"".format(runner[0].__name__, runner[1],runner[2]))
+                if runner is not None:
+                    self.__log.error("Exception while Executing function:\"{}\" with args:\"{}\" and kwargs:\"{}\"".format(runner[0].__name__, runner[1],runner[2]))
                 self.__log.exception(exp)
 
 

@@ -36,15 +36,15 @@ class TestFutures(unittest.TestCase):
     LF1.add_callable(callFromFuture)
     self.assertTrue(LF1.get())
     self.assertTrue(LF2.get())
-    self.assertEquals(2, llf)
-    self.assertEquals(2, clf)
+    self.assertEqual(2, llf)
+    self.assertEqual(2, clf)
     LF2.add_listener(listenFromFuture)
     LF2.add_callable(callFromFuture)
     LF1.add_listener(listenFromFuture)
     LF1.add_callable(callFromFuture)
-    self.assertEquals(4, llf)
-    self.assertEquals(4, clf)
-    sch.shutdown()
+    self.assertEqual(4, llf)
+    self.assertEqual(4, clf)
+    sch.shutdown().get()
 
   def test_futureCallerExceptions(self):
     global clf, llf
@@ -56,7 +56,7 @@ class TestFutures(unittest.TestCase):
     LF2 = sch.schedule_with_future(callLF, delay=100, args=(LF1,))
     self.assertTrue(LF1.get())
     self.assertTrue(LF2.get())
-    sch.shutdown()
+    sch.shutdown().get()
 
   def test_futureDoubleSet(self):
     global clf, llf
@@ -67,8 +67,8 @@ class TestFutures(unittest.TestCase):
     self.assertTrue(LF2.get())
     LF3 = sch.schedule_with_future(callLF, delay=100, args=(LF1,))
     self.assertFalse(LF3.get())
-    self.assertEquals(10, sch.get_poolsize())
-    sch.shutdown()
+    self.assertEqual(10, sch.get_poolsize())
+    sch.shutdown().get()
 
 
 if __name__ == '__main__':

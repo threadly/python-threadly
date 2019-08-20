@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-VERSION = "0.8.1"
+VERSION = "0.8.2"
 
 setup(name="threadly",
        version=VERSION,

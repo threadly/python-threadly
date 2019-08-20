@@ -59,16 +59,16 @@ class TestSchedule(unittest.TestCase):
     p.schedule(TEST, delay=10000, recurring=True)
     p.schedule(TEST, delay=10000, recurring=True)
     p.remove(TEST)
-    self.assertEquals(4, p._Scheduler__delayed_tasks.size())
+    self.assertEqual(4, p._Scheduler__delayed_tasks.size())
     p.remove(TEST)
-    self.assertEquals(3, p._Scheduler__delayed_tasks.size())
+    self.assertEqual(3, p._Scheduler__delayed_tasks.size())
     p.remove(TEST)
-    self.assertEquals(2, p._Scheduler__delayed_tasks.size())
+    self.assertEqual(2, p._Scheduler__delayed_tasks.size())
     p.remove(TEST)
-    self.assertEquals(1, p._Scheduler__delayed_tasks.size())
+    self.assertEqual(1, p._Scheduler__delayed_tasks.size())
     p.remove(TEST)
-    self.assertEquals(1, p._Scheduler__delayed_tasks.size())
-    p.shutdown()
+    self.assertEqual(1, p._Scheduler__delayed_tasks.size())
+    p.shutdown().get()
     
 
 if __name__ == '__main__':

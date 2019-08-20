@@ -19,7 +19,7 @@ class TestAugumentParsing(unittest.TestCase):
     time.sleep(.1)
     self.assertEqual(self.arg1, "test")
     self.assertEqual(self.keys["key"], "test")
-    sch.shutdown()
+    sch.shutdown().get()
 
   def test_keyTestSchedule(self):
     self.arg1 = None
@@ -29,7 +29,7 @@ class TestAugumentParsing(unittest.TestCase):
     time.sleep(.1)
     self.assertEqual(self.arg1, "test")
     self.assertEqual(self.keys["key"], "test")
-    sch.shutdown()
+    sch.shutdown().get()
 
 
 if __name__ == '__main__':
